@@ -2,6 +2,10 @@ use miden::{ProgramInputs, ProofOptions, Script};
 use structopt::StructOpt;
 
 pub mod fibonacci;
+mod collatz;
+mod conditional;
+// mod merkle;
+mod comparison;
 
 // EXAMPLE
 // ================================================================================================

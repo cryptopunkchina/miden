@@ -1,6 +1,6 @@
 use crate::Example;
 use log::debug;
-use miden::{assembly, ProgramInputs};
+use miden::{Assembler, ProgramInputs};
 
 // EXAMPLE BUILDER
 // ================================================================================================
@@ -13,7 +13,8 @@ pub fn get_example(value: usize) -> Example {
     // construct the program which checks if the value provided via secret inputs is
     // less than 9; if it is, the value is multiplied by 9, otherwise, 9 is added
     // to the value; then we check if the value is odd.
-    let program = assembly::compile(
+    let assembler = Assembler::new();
+    let program = assembler.compile_script(
         "
     begin
         push.9
@@ -38,9 +39,9 @@ pub fn get_example(value: usize) -> Example {
 
     Example {
         program,
-        inputs: ProgramInputs::new(&[], &[value], &[]),
+        inputs: ProgramInputs::new(&[], &[value.try_into().unwrap()], (&[]).to_vec()).unwrap(),
         pub_inputs: vec![],
-        expected_result: vec![expected_result & 1, expected_result],
+        expected_result: vec![(expected_result & 1).try_into().unwrap(), expected_result as u64],
         num_outputs: 2,
     }
 }
