@@ -21,7 +21,7 @@ doctest = false
 
 [features]
 concurrent = ["miden/concurrent", "std"]
-default = ["std"]
+default = ["concurrent"]
 std = ["hex/std", "miden/std", "rand-utils", "vm-core/std"]
 
 [dependencies]

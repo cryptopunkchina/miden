@@ -62,7 +62,7 @@ fn compute_fibonacci(n: usize) -> Felt {
 
 #[test]
 fn test_fib_example() {
-    let example = get_example(16);
+    let example = get_example(16000);
     super::test_example(example, false);
 }
 
