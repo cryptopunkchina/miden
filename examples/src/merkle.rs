@@ -1,8 +1,9 @@
 use crate::Example;
 use log::debug;
-use miden::{assembly, BaseElement, FieldElement, Program, ProgramInputs, StarkField};
+use miden::{Assembler,  Script, ProgramInputs};
 use rand_utils::prng_vector;
 use vm_core::hasher;
+pub use math::{fields::f64::BaseElement , FieldElement, StarkField};
 
 // EXAMPLE BUILDER
 // ================================================================================================
@@ -45,7 +46,7 @@ pub fn get_example(depth: usize) -> Example {
 /// Returns a program to verify Merkle authentication paths for a tree of depth `n`;
 /// the program first verifies the path using smpath operation, and then verifies
 /// the same path using pmpath operation.
-fn generate_merkle_program(n: usize, index: usize) -> Program {
+fn generate_merkle_program(n: usize, index: usize) -> Script {
     let source = format!(
         "
     begin
@@ -60,8 +61,8 @@ fn generate_merkle_program(n: usize, index: usize) -> Program {
     ",
         n, index, n
     );
-
-    assembly::compile(&source).unwrap()
+    let assembler = Assembler::new();
+    assembler.compile_script(&source).unwrap()
 }
 
 /// Converts Merkle authentication path for a node at the specified `index` into
