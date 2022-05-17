@@ -4,7 +4,7 @@
 ///
 /// Entries in the array are tuples containing module namespace and module source code.
 #[rustfmt::skip]
-pub const MODULES: [(&str, &str); 5] = [
+pub const MODULES: [(&str, &str); 6] = [
 // ----- std::crypto::hashes::blake3 --------------------------------------------------------------
 ("std::crypto::hashes::blake3", "proc.from_mem_to_stack.1
     storew.local.0
@@ -10030,6 +10030,7 @@ end
 # The input values are assumed to be represented using 32 bit limbs, but this is not checked.
 # Stack transition looks as follows:
 # [b_hi, b_lo, a_hi, a_lo, ...] -> [c_hi, c_mid_hi, c_mid_lo, c_lo, ...], where c = (a * b) % 2^64
+# This takes 18 cycles.
 export.overflowing_mul
     dup.3
     dup.2
@@ -10096,6 +10097,7 @@ end
 # The input values are assumed to be represented using 32 bit limbs, but this is not checked.
 # Stack transition looks as follows:
 # [b_hi, b_lo, a_hi, a_lo, ...] -> [c, ...], where c = 1 when a > b, and 0 otherwise.
+# This takes 11 cycles.
 export.unchecked_gt
     movup.2
     u32sub.unsafe
@@ -10227,6 +10229,55 @@ export.checked_eqz
     and
 end
 
+# Compares two unsigned 64 bit integers and drop the larger one from the stack.
+# The input values are assumed to be represented using 32 bit limbs, but this is not checked.
+# Stack transition looks as follows:
+# [b_hi, b_lo, a_hi, a_lo, ...] -> [c_hi, c_lo, ...], where c = a when a < b, and b otherwise.
+export.unchecked_min
+    dupw
+    exec.unchecked_gt
+    movup.4
+    movup.3
+    dup.2
+    cdrop
+    movdn.3
+    cdrop
+end
+
+# Compares two unsigned 64 bit integers and drop the larger one from the stack.
+# The input values are assumed to be represented using 32 bit limbs, fails if they are not.
+# Stack transition looks as follows:
+# [b_hi, b_lo, a_hi, a_lo, ...] -> [c_hi, c_lo, ...], where c = a when a < b, and b otherwise.
+export.checked_min
+    exec.u32assert4
+    exec.unchecked_min
+end
+
+# Compares two unsigned 64 bit integers and drop the smaller one from the stack.
+# The input values are assumed to be represented using 32 bit limbs, but this is not checked.
+# Stack transition looks as follows:
+# [b_hi, b_lo, a_hi, a_lo, ...] -> [c_hi, c_lo, ...], where c = a when a > b, and b otherwise.
+export.unchecked_max
+    dupw
+    exec.unchecked_lt
+    movup.4
+    movup.3
+    dup.2
+    cdrop
+    movdn.3
+    cdrop
+end
+
+# Compares two unsigned 64 bit integers and drop the smaller one from the stack.
+# The input values are assumed to be represented using 32 bit limbs, fails if they are not.
+# Stack transition looks as follows:
+# [b_hi, b_lo, a_hi, a_lo, ...] -> [c_hi, c_lo, ...], where c = a when a > b, and b otherwise.
+export.checked_max
+    exec.u32assert4
+    exec.unchecked_max
+end
+
+
 # ===== DIVISION ==================================================================================
 
 # Performs division of two unsigned 64 bit integers discarding the remainder.
@@ -10235,7 +10286,7 @@ end
 # [b_hi, b_lo, a_hi, a_lo, ...] -> [c_hi, c_lo, ...], where c = a // b
 export.unchecked_div
     adv.u64div          # inject the quotient and the remainder into the advice tape
-    
+
     push.adv.1          # read the quotient from the advice tape and make sure it consists of
     u32assert           # 32-bit limbs
     push.adv.1          # TODO: this can be optimized once we have u32assert2 instruction
@@ -10304,7 +10355,7 @@ end
 # [b_hi, b_lo, a_hi, a_lo, ...] -> [c_hi, c_lo, ...], where c = a % b
 export.unchecked_mod
     adv.u64div          # inject the quotient and the remainder into the advice tape
-    
+
     push.adv.1          # read the quotient from the advice tape and make sure it consists of
     u32assert           # 32-bit limbs
     push.adv.1          # TODO: this can be optimized once we have u32assert2 instruction
@@ -10373,7 +10424,7 @@ end
 # [b_hi, b_lo, a_hi, a_lo, ...] -> [r_hi, r_lo, q_hi, q_lo ...], where r = a % b, q = a / b
 export.unchecked_divmod
     adv.u64div          # inject the quotient and the remainder into the advice tape
-    
+
     push.adv.1          # read the quotient from the advice tape and make sure it consists of
     u32assert           # 32-bit limbs
     push.adv.1          # TODO: this can be optimized once we have u32assert2 instruction
@@ -10399,7 +10450,7 @@ export.unchecked_divmod
     assert
 
     push.adv.1          # read the remainder from the advice tape and make sure it consists of
-    u32assert           # 32-bit limbs #
+    u32assert           # 32-bit limbs 
     push.adv.1
     u32assert
 
@@ -10487,6 +10538,7 @@ export.unchecked_shl
     exec.wrapping_mul
 end
 
+
 # Performs right shift of one unsigned 64-bit integer using the pow2 operation.
 # The input value to be shifted is assumed to be represented using 32 bit limbs.
 # The shift value is assumed to be in the range [0, 64).
@@ -10496,7 +10548,7 @@ end
 export.unchecked_shr
     pow2
     u32split
-    
+
     dup.1
     add
     movup.2
@@ -10525,6 +10577,52 @@ export.unchecked_shr
     cswap
 end
 
+# Performs left shift of one unsigned 64-bit integer preserving the overflow and
+# using the pow2 operation.
+# The input value to be shifted is assumed to be represented using 32 bit limbs.
+# The shift value is assumed to be in the range [0, 64).
+# Stack transition looks as follows:
+# [b, a_hi, a_lo, ...] -> [d_hi, d_lo, c_hi, c_lo, ...], where (d,c) = a << b, 
+# which d contains the bits shifted out.
+# This takes 20 cycles.
+export.overflowing_shl
+    pow2
+    u32split
+    exec.overflowing_mul
+end
+
+# Performs right shift of one unsigned 64-bit integer preserving the overflow and
+# using the pow2 operation.
+# The input value to be shifted is assumed to be represented using 32 bit limbs.
+# The shift value is assumed to be in the range [0, 64).
+# Stack transition looks as follows:
+# [b, a_hi, a_lo, ...] -> [d_hi, d_lo, c_hi, c_lo, ...], where c = a >> b, d = a << (64 - b).
+# This takes 64 cycles.
+export.overflowing_shr
+    push.64             # (64 - b)
+    dup.1
+    sub
+
+    dup.3               # dup [b, a_hi, a_lo]
+    dup.3
+    dup.3
+    exec.unchecked_shr  # c = a >> b
+
+    movdn.5             # move result [c_hi, c_lo] to be in the format [d_hi, d_lo, c_hi, c_lo, ...]
+    movdn.5
+
+    padw                # padding positions 0, 1, 2, 3 and 4 to be able to use cdropw
+    push.0
+
+    movup.6             # bring and b
+    eq.0
+    cdropw              # if b is 0, swap the positions 0, 1, 2 and 3 with 0, (64 - b), a_hi, a_lo
+                        # regardless of this condition, drop 0, 1, 2 and 3
+    drop                # drop the last added 0 or dup b to keep the format [b, a_hi, a_lo, ....]
+
+    exec.unchecked_shl  # d = a << (64 - b)
+end
+
 # Performs left rotation of one unsigned 64-bit integer using the pow2 operation.
 # The input value to be shifted is assumed to be represented using 32 bit limbs.
 # The shift value is assumed to be in the range [0, 64).
@@ -10538,7 +10636,7 @@ export.unchecked_rotl
     swap
     drop
     movdn.3
-    
+
     # Shift the low limb.
     push.31
     u32and
@@ -10575,7 +10673,7 @@ export.unchecked_rotr
     swap
     drop
     movdn.3
-    
+
     # Shift the low limb left by 32-b.
     push.31
     u32and
@@ -10602,6 +10700,31 @@ export.unchecked_rotr
     movup.2
     not
     cswap
+end
+"),
+// ----- std::sys ---------------------------------------------------------------------------------
+("std::sys", "# Clears the stack overflow table and ensures the stack top remains unchanged
+# Input: Stack top with 16 elements + overflow table with greater than or equal to 0 number of elements.
+# Output: Stack top with original 16 elements
+export.finalize_stack.16
+    popw.local.0
+    popw.local.1
+    popw.local.2
+    popw.local.3
+    push.env.sdepth
+    neq.16
+    while.true
+        dropw
+        push.env.sdepth
+        neq.16
+    end
+    loadw.local.3
+    swapw.3
+    loadw.local.2
+    swapw.2
+    loadw.local.1
+    swapw.1
+    loadw.local.0
 end
 "),
 ];

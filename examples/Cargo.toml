@@ -7,7 +7,7 @@ readme = "README.md"
 license = "MIT"
 repository = "https://github.com/maticnetwork/miden"
 edition = "2021"
-rust-version = "1.57"
+rust-version = "1.60"
 
 [lib]
 bench = false
@@ -21,7 +21,7 @@ doctest = false
 
 [features]
 concurrent = ["miden/concurrent", "std"]
-default = ["concurrent"]
+default = ["std"]
 std = ["hex/std", "miden/std", "rand-utils", "vm-core/std"]
 
 [dependencies]
@@ -31,6 +31,4 @@ log = { version = "0.4", default-features = false }
 miden = { path = "../miden", version = "0.2", default-features = false }
 structopt = { version = "0.3", default-features = false }
 vm-core = { package = "miden-core", path = "../core", version = "0.2", default-features = false }
-rand-utils = { package = "winter-rand-utils", version = "0.3", optional = true }
-math = { package = "winter-math", version = "0.3", default-features = false }
-assembly = { package = "miden-assembly", path = "../assembly", version = "0.2", default-features = false }
+rand-utils = { package = "winter-rand-utils", version = "0.4", optional = true }

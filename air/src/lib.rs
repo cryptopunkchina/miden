@@ -1,13 +1,18 @@
-use vm_core::{hasher::Digest, CLK_COL_IDX, FMP_COL_IDX, MIN_STACK_DEPTH, STACK_TRACE_OFFSET};
+use vm_core::{
+    hasher::Digest,
+    utils::{ByteWriter, Serializable},
+    CLK_COL_IDX, FMP_COL_IDX, MIN_STACK_DEPTH, STACK_TRACE_OFFSET,
+};
 use winter_air::{
     Air, AirContext, Assertion, EvaluationFrame, ProofOptions as WinterProofOptions, TraceInfo,
     TransitionConstraintDegree,
 };
-use winter_utils::{ByteWriter, Serializable};
 
+mod aux_table;
 mod options;
 mod range;
 mod utils;
+use utils::TransitionConstraintRange;
 
 // EXPORTS
 // ================================================================================================
@@ -24,6 +29,14 @@ pub struct ProcessorAir {
     context: AirContext<Felt>,
     stack_inputs: Vec<Felt>,
     stack_outputs: Vec<Felt>,
+    constraint_ranges: TransitionConstraintRange,
+}
+
+impl ProcessorAir {
+    /// Returns last step of the execution trace.
+    pub fn last_step(&self) -> usize {
+        self.trace_length() - self.context().num_transition_exemptions()
+    }
 }
 
 impl Air for ProcessorAir {
@@ -31,26 +44,68 @@ impl Air for ProcessorAir {
     type PublicInputs = PublicInputs;
 
     fn new(trace_info: TraceInfo, pub_inputs: PublicInputs, options: WinterProofOptions) -> Self {
+        // --- system -----------------------------------------------------------------------------
         let mut degrees = vec![
             TransitionConstraintDegree::new(1), // clk' = clk + 1
         ];
 
-        // Add the range checker's constraint degrees.
-        degrees.append(&mut range::get_transition_constraint_degrees());
+        // --- range checker ----------------------------------------------------------------------
+        let mut range_checker_degrees = range::get_transition_constraint_degrees();
+        degrees.append(&mut range_checker_degrees);
+
+        // --- auxiliary table of co-processors (hasher, bitwise, memory) -------------------------
+        let mut aux_table_degrees = aux_table::get_transition_constraint_degrees();
+        degrees.append(&mut aux_table_degrees);
+
+        // Define the transition constraint ranges.
+        let constraint_ranges = TransitionConstraintRange::new(
+            1,
+            range::get_transition_constraint_count(),
+            aux_table::get_transition_constraint_count(),
+        );
+
+        // TODO: determine dynamically
+        let num_assertions = 2
+            + pub_inputs.stack_inputs.len()
+            + pub_inputs.stack_outputs.len()
+            + range::NUM_ASSERTIONS;
+
+        // create the context and set the number of transition constraint exemptions to two; this
+        // allows us to inject random values into the last row of the execution trace
+        let context = AirContext::new(trace_info, degrees, num_assertions, options)
+            .set_num_transition_exemptions(2);
 
         Self {
-            context: AirContext::new(trace_info, degrees, options),
+            context,
             stack_inputs: pub_inputs.stack_inputs,
             stack_outputs: pub_inputs.stack_outputs,
+            constraint_ranges,
         }
     }
+
+    // PERIODIC COLUMNS
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns a set of periodic columns for the ProcessorAir.
+    ///
+    /// The columns consist of:
+    /// - k0 column, which has a repeating pattern of a single one followed by 7 zeros.
+    /// - k1 column, which has a repeating pattern of a 7 ones followed by a single zero.
+    fn get_periodic_column_values(&self) -> Vec<Vec<Felt>> {
+        vec![
+            aux_table::BITWISE_POW2_K0_MASK.to_vec(),
+            aux_table::BITWISE_POW2_K1_MASK.to_vec(),
+        ]
+    }
+
+    // ASSERTIONS
+    // --------------------------------------------------------------------------------------------
 
     #[allow(clippy::vec_init_then_push)]
     fn get_assertions(&self) -> Vec<Assertion<Felt>> {
         let mut result = Vec::new();
 
         // --- set assertions for the first step --------------------------------------------------
-
         // first value of clk is 0
         result.push(Assertion::single(CLK_COL_IDX, 0, Felt::ZERO));
 
@@ -66,7 +121,7 @@ impl Air for ProcessorAir {
         range::get_assertions_first_step(&mut result);
 
         // --- set assertions for the last step ---------------------------------------------------
-        let last_step = self.trace_length() - 1;
+        let last_step = self.last_step();
 
         // stack columns at the last step should be set to stack outputs
         for (i, &value) in self.stack_outputs.iter().enumerate() {
@@ -79,10 +134,13 @@ impl Air for ProcessorAir {
         result
     }
 
+    // TRANSITION CONSTRAINTS
+    // --------------------------------------------------------------------------------------------
+
     fn evaluate_transition<E: FieldElement<BaseField = Felt>>(
         &self,
         frame: &EvaluationFrame<E>,
-        _periodic_values: &[E],
+        periodic_values: &[E],
         result: &mut [E],
     ) {
         let current = frame.current();
@@ -93,7 +151,17 @@ impl Air for ProcessorAir {
         result[0] = next[CLK_COL_IDX] - (current[CLK_COL_IDX] + E::ONE);
 
         // --- range checker ----------------------------------------------------------------------
-        range::enforce_constraints::<E>(frame, &mut result[1..]);
+        range::enforce_constraints::<E>(
+            frame,
+            select_result_range!(result, self.constraint_ranges.range_checker),
+        );
+
+        // --- auxiliary table of co-processors (hasher, bitwise, memory) -------------------------
+        aux_table::enforce_constraints::<E>(
+            frame,
+            periodic_values,
+            select_result_range!(result, self.constraint_ranges.aux_table),
+        );
     }
 
     fn context(&self) -> &AirContext<Felt> {

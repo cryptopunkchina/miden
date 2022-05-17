@@ -1,6 +1,16 @@
 use super::{Felt, StarkField};
 use core::ops::Range;
 
+// RE-EXPORTS
+// ================================================================================================
+
+pub use winter_utils::{
+    collections, group_vector_elements, uninit_vector, ByteReader, ByteWriter, Deserializable,
+    DeserializationError, Serializable, SliceReader,
+};
+
+pub use crypto::{RandomCoin, RandomCoinError};
+
 // TO ELEMENTS
 // ================================================================================================
 

@@ -1,6 +1,7 @@
 use super::{build_test, TestError};
 use proptest::prelude::*;
 use rand_utils::rand_value;
+use std::cmp;
 
 // ADDITION
 // ------------------------------------------------------------------------------------------------
@@ -460,6 +461,44 @@ fn unchecked_gte() {
 }
 
 #[test]
+fn unchecked_min() {
+    // test a few manual cases; randomized tests are done using proptest
+    let source = "
+        use.std::math::u64
+        begin
+            exec.u64::unchecked_min
+        end";
+
+    // a = 0, b = 0
+    build_test!(source, &[0, 0, 0, 0]).expect_stack(&[0, 0]);
+
+    // a = 1, b = 2
+    build_test!(source, &[1, 0, 2, 0]).expect_stack(&[0, 1]);
+
+    // a = 3, b = 2
+    build_test!(source, &[3, 0, 2, 0]).expect_stack(&[0, 2]);
+}
+
+#[test]
+fn unchecked_max() {
+    // test a few manual cases; randomized tests are done using proptest
+    let source = "
+        use.std::math::u64
+        begin
+            exec.u64::unchecked_max
+        end";
+
+    // a = 0, b = 0
+    build_test!(source, &[0, 0, 0, 0]).expect_stack(&[0, 0]);
+
+    // a = 1, b = 2
+    build_test!(source, &[1, 0, 2, 0]).expect_stack(&[0, 2]);
+
+    // a = 3, b = 2
+    build_test!(source, &[3, 0, 2, 0]).expect_stack(&[0, 3]);
+}
+
+#[test]
 fn unchecked_eq() {
     let source = "
         use.std::math::u64
@@ -842,6 +881,135 @@ fn unchecked_shr() {
 }
 
 #[test]
+fn overflowing_shl() {
+    let source = "
+        use.std::math::u64
+        begin
+            exec.u64::overflowing_shl
+        end";
+
+    // shl u64 to u128 to avoid overflowing
+    let shl_to_u128 = |a: u64, b: u32| -> u128 { (a as u128) << b };
+
+    // shift by 0
+    let a: u64 = rand_value();
+    let (a1, a0) = split_u64(a);
+    let b: u32 = 0;
+
+    let c = shl_to_u128(a, b);
+    let (d1, d0, c1, c0) = split_u128(c);
+
+    build_test!(source, &[5, a0, a1, b as u64]).expect_stack(&[d1, d0, c1, c0, 5]);
+
+    // shift by 31 (max lower limb of b)
+    let b: u32 = 31;
+    let c = shl_to_u128(a, b);
+    let (d1, d0, c1, c0) = split_u128(c);
+
+    build_test!(source, &[5, a0, a1, b as u64]).expect_stack(&[d1, d0, c1, c0, 5]);
+
+    // shift by 32 (min for upper limb of b)
+    let a = 1_u64;
+    let (a1, a0) = split_u64(a);
+    let b: u32 = 32;
+    let c = shl_to_u128(a, b);
+    let (d1, d0, c1, c0) = split_u128(c);
+
+    build_test!(source, &[5, a0, a1, b as u64]).expect_stack(&[d1, d0, c1, c0, 5]);
+
+    // shift by 33
+    let a = 1_u64;
+    let (a1, a0) = split_u64(a);
+    let b: u32 = 33;
+    let c = shl_to_u128(a, b);
+    let (d1, d0, c1, c0) = split_u128(c);
+
+    build_test!(source, &[5, a0, a1, b as u64]).expect_stack(&[d1, d0, c1, c0, 5]);
+
+    // shift 64 by 58
+    let a = 64_u64;
+    let (a1, a0) = split_u64(a);
+    let b: u32 = 58;
+    let c = shl_to_u128(a, b);
+    let (d1, d0, c1, c0) = split_u128(c);
+
+    build_test!(source, &[5, a0, a1, b as u64]).expect_stack(&[d1, d0, c1, c0, 5]);
+}
+
+#[test]
+fn overflowing_shr() {
+    let source = "
+        use.std::math::u64
+        begin
+            exec.u64::overflowing_shr
+        end";
+
+    // get bits shifted out and return 0 if b is 0 or 64
+    let bits_shifted_out = |a: u64, b: u32| -> u64 {
+        if b % 64 == 0 {
+            0_u64
+        } else {
+            a.wrapping_shl(64 - b)
+        }
+    };
+
+    // shift by 0
+    let a: u64 = rand_value();
+    let (a1, a0) = split_u64(a);
+    let b: u32 = 0;
+
+    let c = a.wrapping_shr(b);
+    let (c1, c0) = split_u64(c);
+    let d = bits_shifted_out(a, b);
+    let (d1, d0) = split_u64(d);
+
+    build_test!(source, &[5, a0, a1, b as u64]).expect_stack(&[d1, d0, c1, c0, 5]);
+
+    // shift by 31 (max lower limb of b)
+    let b: u32 = 31;
+
+    let c = a.wrapping_shr(b);
+    let (c1, c0) = split_u64(c);
+    let d = bits_shifted_out(a, b);
+    let (d1, d0) = split_u64(d);
+
+    build_test!(source, &[5, a0, a1, b as u64]).expect_stack(&[d1, d0, c1, c0, 5]);
+
+    // shift by 32 (min for upper limb of b)
+    let a = 1_u64;
+    let (a1, a0) = split_u64(a);
+    let b: u32 = 32;
+    let c = a.wrapping_shr(b);
+    let (c1, c0) = split_u64(c);
+    let d = bits_shifted_out(a, b);
+    let (d1, d0) = split_u64(d);
+
+    build_test!(source, &[5, a0, a1, b as u64]).expect_stack(&[d1, d0, c1, c0, 5]);
+
+    // shift by 33
+    let a = 1_u64;
+    let (a1, a0) = split_u64(a);
+    let b: u32 = 33;
+    let c = a.wrapping_shr(b);
+    let (c1, c0) = split_u64(c);
+    let d = bits_shifted_out(a, b);
+    let (d1, d0) = split_u64(d);
+
+    build_test!(source, &[5, a0, a1, b as u64]).expect_stack(&[d1, d0, c1, c0, 5]);
+
+    // shift 64 by 58
+    let a = 64_u64;
+    let (a1, a0) = split_u64(a);
+    let b: u32 = 58;
+    let c = a.wrapping_shr(b);
+    let (c1, c0) = split_u64(c);
+    let d = bits_shifted_out(a, b);
+    let (d1, d0) = split_u64(d);
+
+    build_test!(source, &[5, a0, a1, b as u64]).expect_stack(&[d1, d0, c1, c0, 5]);
+}
+
+#[test]
 fn unchecked_rotl() {
     let source = "
         use.std::math::u64
@@ -975,6 +1143,38 @@ proptest! {
             end";
 
         build_test!(source, &[a0, a1, b0, b1]).prop_expect_stack(&[c])?;
+    }
+
+    #[test]
+    fn unchecked_min_proptest(a in any::<u64>(), b in any::<u64>()) {
+
+        let (a1, a0) = split_u64(a);
+        let (b1, b0) = split_u64(b);
+        let c = cmp::min(a, b) as u64;
+        let (c1, c0) = split_u64(c);
+        let source = "
+            use.std::math::u64
+            begin
+                exec.u64::unchecked_min
+            end";
+
+        build_test!(source, &[a0, a1, b0, b1]).prop_expect_stack(&[c1, c0])?;
+    }
+
+    #[test]
+    fn unchecked_max_proptest(a in any::<u64>(), b in any::<u64>()) {
+
+        let (a1, a0) = split_u64(a);
+        let (b1, b0) = split_u64(b);
+        let c = cmp::max(a, b) as u64;
+        let (c1, c0) = split_u64(c);
+        let source = "
+            use.std::math::u64
+            begin
+                exec.u64::unchecked_max
+            end";
+
+        build_test!(source, &[a0, a1, b0, b1]).prop_expect_stack(&[c1, c0])?;
     }
 
     #[test]
