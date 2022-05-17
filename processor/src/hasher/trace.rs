@@ -11,6 +11,7 @@ use vm_core::hasher::{apply_round, NUM_ROUNDS, STATE_WIDTH};
 /// - 1 row address column.
 /// - 12 columns describing hasher state.
 /// - 1 node index column used for Merkle path related computations.
+#[derive(Clone, Debug)]
 pub struct HasherTrace {
     selectors: [Vec<Felt>; 3],
     row_addr: Vec<Felt>,

@@ -91,6 +91,7 @@ type Selectors = [Felt; NUM_SELECTORS];
 ///   the output of the power of two operation.
 /// - Column `z` contains the aggregated result of the power of two operation that has been
 ///   computed so far. Thus, by the 8th row, column `z` contains `2^a` for input value `a`.
+#[derive(Clone, Debug)]
 pub struct Bitwise {
     trace: [Vec<Felt>; TRACE_WIDTH],
 }

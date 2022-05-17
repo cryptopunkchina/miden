@@ -14,11 +14,12 @@ pub const FMP_MAX: u64 = FMP_MIN + u32::MAX as u64;
 /// System info container for the VM.
 ///
 /// Currently, this keeps track of the clock cycle and free memory pointer registers.
+#[derive(Clone, Debug)]
 pub struct System {
     clk: usize,
-    clk_trace: Vec<Felt>,
+    pub clk_trace: Vec<Felt>,
     fmp: Felt,
-    fmp_trace: Vec<Felt>,
+    pub fmp_trace: Vec<Felt>,
 }
 
 impl System {

@@ -41,10 +41,12 @@ mod tests;
 /// - columns 0-2: selector columns with values set to ONE
 /// - columns 3-17: unused columns padded with ZERO
 ///
+///
+#[derive(Clone, Debug)]
 pub struct AuxTable {
-    hasher: Hasher,
-    bitwise: Bitwise,
-    memory: Memory,
+    pub hasher: Hasher,
+    pub bitwise: Bitwise,
+    pub memory: Memory,
 }
 
 impl AuxTable {

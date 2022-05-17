@@ -12,19 +12,31 @@ pub fn get_example(flag: usize) -> Example {
     // determine the expected result
     let expected_result = match flag {
         0 => 15u64,
-        1 => 8u64,
+        1 => 35u64,
         _ => panic!("flag must be a binary value"),
     };
 
     // construct the program which either adds or multiplies two numbers
     // based on the value provided via secret inputs
     let assembler = Assembler::new();
+    //storew.mem.0
     let program = assembler.compile_script(
         "
     begin
         push.3
+
         push.5
-        push.0
+        pow2
+        push.10
+        push.11
+        storew.mem.0
+        dropw
+
+        loadw.mem.0
+        drop
+        drop
+        swap
+        push.1
         if.true
             add
         else

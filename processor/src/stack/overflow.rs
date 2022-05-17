@@ -11,6 +11,7 @@ use vm_core::utils::collections::BTreeMap;
 ///
 /// When `trace_enabled` is set to true, we also record all changes to the table so that we can
 /// reconstruct the overflow table at any clock cycle. This can be used for debugging purposes.
+#[derive(Debug)]
 pub struct OverflowTable {
     rows: Vec<OverflowRow>,
     trace: BTreeMap<usize, Vec<Felt>>,
@@ -84,6 +85,7 @@ impl OverflowTable {
 
 /// A single row in the stack overflow table. Each row stores the value of the stack item as well
 /// as the clock cycle at which the stack item was pushed into the overflow table.
+#[derive(Debug)]
 struct OverflowRow {
     clk: Felt,
     val: Felt,

@@ -87,6 +87,7 @@ type Selectors = [Felt; NUM_SELECTORS];
 /// Each permutation of the hash function adds 8 rows to the execution trace. Thus, for Merkle
 /// path verification, number of rows added to the trace is 8 * path.len(), and for Merkle root
 /// update it is 16 * path.len(), since we need to perform two path verifications for each update.
+#[derive(Clone, Debug)]
 pub struct Hasher {
     trace: HasherTrace,
 }

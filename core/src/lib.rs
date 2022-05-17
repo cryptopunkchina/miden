@@ -27,7 +27,7 @@ pub type StackTopState = [Felt; MIN_STACK_DEPTH];
 // ================================================================================================
 
 /// The minimum length of the execution trace. This is the minimum required to support range checks.
-pub const MIN_TRACE_LEN: usize = 1024;
+pub const MIN_TRACE_LEN: usize = 32;
 
 /// The minimum stack depth enforced by the VM. This is also the number of stack registers which can
 /// be accessed by the VM directly.

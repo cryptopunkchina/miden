@@ -55,6 +55,7 @@ const INIT_MEM_VALUE: Word = [Felt::ZERO; 4];
 ///   clock cycles computed as described above.
 ///
 /// For the first row of the trace, values in `d0`, `d1`, and `d_inv` are set to zeros.
+#[derive(Clone, Debug)]
 pub struct Memory {
     /// Current clock cycle of the VM.
     step: u64,
