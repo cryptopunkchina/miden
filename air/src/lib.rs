@@ -1,3 +1,4 @@
+use log::info;
 use vm_core::{
     hasher::Digest,
     utils::{ByteWriter, Serializable},
@@ -70,11 +71,12 @@ impl Air for ProcessorAir {
             + pub_inputs.stack_outputs.len()
             + range::NUM_ASSERTIONS;
 
+        info!("TransitionConstraintDegree:{}", degrees.len());
         // create the context and set the number of transition constraint exemptions to two; this
         // allows us to inject random values into the last row of the execution trace
         let context = AirContext::new(trace_info, degrees, num_assertions, options)
             .set_num_transition_exemptions(2);
-
+        info!("constraint_ranges:{:?}", constraint_ranges);
         Self {
             context,
             stack_inputs: pub_inputs.stack_inputs,
