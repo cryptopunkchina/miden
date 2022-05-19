@@ -1,5 +1,6 @@
 use super::{Digest, Felt, FieldElement, Process, StackTopState};
 use core::slice;
+use log::info;
 use vm_core::{StarkField, MIN_STACK_DEPTH, MIN_TRACE_LEN, STACK_TRACE_OFFSET, TRACE_WIDTH};
 use winterfell::{EvaluationFrame, Matrix, Serializable, Trace, TraceLayout};
 
@@ -22,7 +23,7 @@ type RandomCoin = vm_core::utils::RandomCoin<Felt, vm_core::hasher::Hasher>;
 pub struct ExecutionTrace {
     meta: Vec<u8>,
     layout: TraceLayout,
-    main_trace: Matrix<Felt>,
+    pub main_trace: Matrix<Felt>,
     // TODO: program hash should be retrieved from decoder trace, but for now we store it explicitly
     program_hash: Digest,
 }
@@ -218,6 +219,7 @@ fn finalize_trace(process: Process, mut rng: RandomCoin) -> Vec<Vec<Felt>> {
     assert_eq!(clk, system.trace_len(), "inconsistent system trace lengths");
     assert_eq!(clk, stack.trace_len(), "inconsistent stack trace lengths");
 
+    info!("clk:{},range:{},aux_table:{}", clk, range.trace_len(), aux_table.trace_len());
     // Get the trace length required to hold all execution trace steps.
     let max_len = [clk, range.trace_len(), aux_table.trace_len()]
         .into_iter()

@@ -1,3 +1,4 @@
+use env_logger::Env;
 use miden::{ProgramInputs, ProofOptions, Script};
 use structopt::StructOpt;
 
@@ -80,4 +81,30 @@ pub fn test_example(example: Example, fail: bool) {
     } else {
         assert!(miden::verify(*program.hash(), &pub_inputs, &outputs, proof).is_ok());
     }
+}
+
+pub fn init_log(log_level: &str){
+    use std::io::Write;
+    use chrono::Local;
+    // let env = env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV,log_level);
+    // env_logger::Builder::from_env(env).format(|buf,record|{
+    //     writeln!(
+    //         buf,
+    //         "{} {} [{}:{}] {} {}",
+    //         Local::now().format("%Y-%m-%d %H:%M:%S"),
+    //         record.level(),
+    //         record.module_path().unwrap_or("<unnamed>"),
+    //         record.line().unwrap_or(0),
+    //         record.target(),
+    //         &record.args()
+    //     )
+    // }).init();
+    env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
+    // let env = env_logger::Env::new().filter_or(env_logger::DEFAULT_FILTER_ENV, log_level).write_style_or("MY_LOG_STYLE", "always");
+    // env_logger::Builder::from_env(env)
+    //     .format(|buf, record| {
+    //         writeln!(buf, "{}: {}", record.level(), record.args())
+    //     })
+    //     .is_test(true).try_init();
+    println!("log config success");
 }

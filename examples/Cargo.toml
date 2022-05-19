@@ -32,3 +32,4 @@ miden = { path = "../miden", version = "0.2", default-features = false }
 structopt = { version = "0.3", default-features = false }
 vm-core = { package = "miden-core", path = "../core", version = "0.2", default-features = false }
 rand-utils = { package = "winter-rand-utils", version = "0.4", optional = true }
+chrono="*"

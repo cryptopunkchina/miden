@@ -49,9 +49,10 @@ pub fn execute(
     let trace = processor::execute(program, inputs)?;
     #[cfg(feature = "std")]
     debug!(
-        "Generated execution trace of {} columns and {} steps in {} ms",
+        "Generated execution trace of {} columns and {} :{}steps in {} ms",
         trace.layout().main_trace_width(),
         trace.length(),
+        trace.main_trace.num_cols(),
         now.elapsed().as_millis()
     );
 

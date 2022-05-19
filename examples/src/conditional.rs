@@ -1,4 +1,4 @@
-use crate::Example;
+use crate::{Example, init_log};
 use log::debug;
 use miden::{Assembler, ProgramInputs};
 
@@ -29,10 +29,10 @@ pub fn get_example(flag: usize) -> Example {
         pow2
         push.10
         push.11
-        storew.mem.0
+        storew.mem.10000
         dropw
 
-        loadw.mem.0
+        loadw.mem.10000
         drop
         drop
         swap
@@ -65,6 +65,7 @@ pub fn get_example(flag: usize) -> Example {
 
 #[test]
 fn test_conditional_example() {
+    init_log("debug");
     let example = get_example(1);
     super::test_example(example, false);
 }
