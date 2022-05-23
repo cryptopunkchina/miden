@@ -1,3 +1,4 @@
+use log::info;
 use crate::RangeCheckTrace;
 
 use super::{Felt, FieldElement};
@@ -51,6 +52,7 @@ mod tests;
 /// (1, 1, 1, v) and (1, 1, 0, v). The first row specifies that there was 4 lookups and the second
 /// row add the fifth lookup.
 #[allow(dead_code)]
+#[derive(Debug)]
 pub struct RangeChecker {
     /// Tracks lookup count for each checked value.
     lookups: BTreeMap<u16, usize>,
@@ -123,7 +125,9 @@ impl RangeChecker {
         // need to use lookups_8bit table later in this function, and we don't want to create it
         // twice.
         let (lookups_8bit, num_16_bit_rows) = self.build_8bit_lookup();
+        info!("lookups_8bit:{:?},num_16_bit_rows:{}", lookups_8bit, num_16_bit_rows);
         let num_8bit_rows = get_num_8bit_rows(&lookups_8bit);
+        info!("num_8bit_rows total:{}", num_8bit_rows);
         let trace_len = num_8bit_rows + num_16_bit_rows;
         assert!(
             trace_len + num_rand_rows <= target_len,
@@ -150,10 +154,12 @@ impl RangeChecker {
 
         // build the 8-bit segment of the trace table
         let mut i = num_padding_rows;
+        info!("num_padding_rows:{}", i);
         for (value, num_lookups) in lookups_8bit.into_iter().enumerate() {
+            info!("lookups_8bit value:{}, num_lookups:{}",value, num_lookups);
             write_value(&mut trace, &mut i, num_lookups, value as u64);
         }
-
+        info!("num_padding_rows 8bit i:{}", i);
         // fill in the first column to indicate where the 8-bit segment ends and where the
         // 16-bit segment begins
         trace[0][..i].fill(Felt::ZERO);
@@ -163,13 +169,14 @@ impl RangeChecker {
         let mut prev_value = 0u16;
         for (&value, &num_lookups) in self.lookups.iter() {
             // when the delta between two values is greater than 255, insert "bridge" rows
+            info!("{}", prev_value );
             for value in (prev_value..value).step_by(255).skip(1) {
                 write_value(&mut trace, &mut i, 0, value as u64);
             }
             write_value(&mut trace, &mut i, num_lookups, value as u64);
             prev_value = value;
         }
-
+        info!("num_padding_rows 16bit i:{}", i);
         trace
     }
 
@@ -185,10 +192,12 @@ impl RangeChecker {
 
         let mut prev_value = 0u16;
         for (&value, &num_lookups) in self.lookups.iter() {
+            info!("build_8bit_lookup value:{}, num_lookups:{}", value, num_lookups);
             // determine how many 16-bit lookup rows we need for this value; if the number of rows
             // is greater than 1, we also need 8-bit lookups for ZERO value since the delta between
             // rows of the same value is zero.
             let num_rows = lookups_to_rows(num_lookups);
+            info!("build_8bit_lookup num_rows:{}", num_rows);
             result[0] += num_rows - 1;
             num_16bit_rows += num_rows;
 
@@ -198,7 +207,7 @@ impl RangeChecker {
             // 255 rows apart.
             let delta = value - prev_value;
             let (delta_q, delta_r) = div_rem(delta as usize, 255);
-
+            info!("build_8bit_lookup delta_q:{}, delta_r:{}", delta_q, delta_r);
             if delta_q != 0 {
                 result[255] += delta_q;
                 let num_bridge_rows = if delta_r == 0 { delta_q - 1 } else { delta_q };
@@ -247,8 +256,13 @@ fn lookups_to_rows(num_lookups: usize) -> usize {
 /// Returns the number of trace rows needed to describe the specified 8-bit lookup table.
 fn get_num_8bit_rows(lookups: &[usize; 256]) -> usize {
     let mut result = 0;
+    let mut i = 0;
     for &num_lookups in lookups.iter() {
+        info!("get_num_8bit_rows index:{},value:{}",i, num_lookups );
+        let row = lookups_to_rows(num_lookups);
+        info!("get_num_8bit_rows:{}", row );
         result += lookups_to_rows(num_lookups);
+        i+=1;
     }
     result
 }
