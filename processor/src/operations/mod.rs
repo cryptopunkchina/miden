@@ -36,6 +36,7 @@ impl Process {
             Operation::Span => unreachable!("control flow operation"),
             Operation::Respan => unreachable!("control flow operation"),
             Operation::End => unreachable!("control flow operation"),
+            Operation::Halt => unreachable!("control flow operation"),
 
             // ----- field operations -------------------------------------------------------------
             Operation::Add => self.op_add()?,
@@ -65,6 +66,7 @@ impl Process {
             Operation::U32and => self.op_u32and()?,
             Operation::U32or => self.op_u32or()?,
             Operation::U32xor => self.op_u32xor()?,
+            Operation::U32assert2 => self.op_u32assert2()?,
 
             // ----- stack manipulation -----------------------------------------------------------
             Operation::Pad => self.op_pad()?,
