@@ -93,7 +93,7 @@ type Selectors = [Felt; NUM_SELECTORS];
 ///   computed so far. Thus, by the 8th row, column `z` contains `2^a` for input value `a`.
 #[derive(Clone, Debug)]
 pub struct Bitwise {
-    trace: [Vec<Felt>; TRACE_WIDTH],
+    pub trace: [Vec<Felt>; TRACE_WIDTH],
 }
 
 impl Bitwise {

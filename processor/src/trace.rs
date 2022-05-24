@@ -138,8 +138,9 @@ impl Trace for ExecutionTrace {
 // ================================================================================================
 
 /// TODO: add docs
+#[derive(Debug)]
 pub struct TraceFragment<'a> {
-    data: Vec<&'a mut [Felt]>,
+    pub data: Vec<&'a mut [Felt]>,
 }
 
 impl<'a> TraceFragment<'a> {

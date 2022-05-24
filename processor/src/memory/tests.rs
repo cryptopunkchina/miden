@@ -1,3 +1,4 @@
+use log::info;
 use super::{Felt, FieldElement, Memory, StarkField, TraceFragment, Word};
 
 #[test]
@@ -66,8 +67,36 @@ fn mem_read() {
     assert_eq!(expected, read_trace_row(&trace, 3));
 }
 
+pub fn init_log(log_level: &str){
+    use std::io::Write;
+
+    let env = env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV,log_level);
+    env_logger::Builder::from_env(env).format(|buf,record|{
+        writeln!(
+            buf,
+            " {} [{}:{}] {} {}",
+            // Local::now().format("%Y-%m-%d %H:%M:%S"),
+            record.level(),
+            record.module_path().unwrap_or("<unnamed>"),
+            record.line().unwrap_or(0),
+            record.target(),
+            &record.args()
+        )
+    }).init();
+    // env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(log_level)).init();
+    let env = env_logger::Env::new().filter_or(env_logger::DEFAULT_FILTER_ENV, log_level).write_style_or("MY_LOG_STYLE", "always");
+    env_logger::Builder::from_env(env)
+        .format(|buf, record| {
+            writeln!(buf, "{}: {}", record.level(), record.args())
+        })
+        .is_test(true).try_init();
+    println!("log config success");
+}
+
+
 #[test]
 fn mem_write() {
+    init_log("info");
     let mut mem = Memory::new();
 
     // write a value into address 0; clk = 1
@@ -104,16 +133,24 @@ fn mem_write() {
     assert_eq!(value7, mem.get_value(addr1.as_int()).unwrap());
     assert_eq!(3, mem.size());
     assert_eq!(4, mem.trace_len());
-
+    info!("mem rows:{:?}", mem.num_trace_rows);
+    for item in mem.trace.iter() {
+        info!("mem addr:{} data:{:?}", item.0, item.1);
+    }
     // check generated trace; rows should be sorted by address and then clock cycle
     let num_rows = 4;
-    let mut trace = (0..14)
+    let mut trace = (0..14) //ctx addr clk old 4 new 4 value delta_lo delta_hi delta_inv 14 column
         .map(|_| vec![Felt::ZERO; num_rows])
         .collect::<Vec<_>>();
     let mut fragment = TraceFragment::trace_to_fragment(&mut trace);
+    // for item in fragment.data.iter().enumerate() {
+    //     info!("frage before index:{} data:{:?}", item.0, item.1);
+    // }
 
     mem.fill_trace(&mut fragment);
-
+    for item in fragment.data.iter().enumerate() {
+        info!("frage after index:{} data:{:?}", item.0, item.1);
+    }
     // address 0
     let expected = build_trace_row(addr0, 1, [Felt::ZERO; 4], value1, [Felt::ZERO; 14]);
     assert_eq!(expected, read_trace_row(&trace, 0));
@@ -131,6 +168,7 @@ fn mem_write() {
 
 #[test]
 fn mem_write_read() {
+    init_log("info");
     let mut mem = Memory::new();
 
     // write 1 into address 5; clk = 1
@@ -183,7 +221,9 @@ fn mem_write_read() {
     let mut fragment = TraceFragment::trace_to_fragment(&mut trace);
 
     mem.fill_trace(&mut fragment);
-
+    for item in fragment.data.iter().enumerate() {
+        info!("frage after index:{} data:{:?}", item.0, item.1);
+    }
     // address 2
     let expected = build_trace_row(addr2, 2, [Felt::ZERO; 4], value4, [Felt::ZERO; 14]);
     assert_eq!(expected, read_trace_row(&trace, 0));

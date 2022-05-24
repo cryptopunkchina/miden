@@ -58,14 +58,14 @@ const INIT_MEM_VALUE: Word = [Felt::ZERO; 4];
 #[derive(Clone, Debug)]
 pub struct Memory {
     /// Current clock cycle of the VM.
-    step: u64,
+    pub step: u64,
 
     /// Memory access trace sorted first by address and then by clock cycle.
-    trace: BTreeMap<u64, Vec<(Felt, Word)>>,
+    pub trace: BTreeMap<u64, Vec<(Felt, Word)>>,
 
     /// Total number of entries in the trace; tracked separately so that we don't have to sum up
     /// length of all vectors in the trace map all the time.
-    num_trace_rows: usize,
+    pub num_trace_rows: usize,
 }
 
 impl Memory {
