@@ -13,10 +13,11 @@ fn bitwise_init() {
 
 #[test]
 fn bitwise_and() {
+    init_log("info");
     let mut bitwise = Bitwise::new();
 
-    let a = rand_u32();
-    let b = rand_u32();
+    let a = Felt::new(41851);//rand_u32();
+    let b = Felt::new(40426);//rand_u32();
 
     let result = bitwise.u32and(a, b).unwrap();
     assert_eq!(a.as_int() & b.as_int(), result.as_int());
@@ -29,7 +30,9 @@ fn bitwise_and() {
     let mut fragment = TraceFragment::trace_to_fragment(&mut trace);
 
     bitwise.fill_trace(&mut fragment);
-
+    for item in fragment.data.iter().enumerate() {
+        info!("bitwise index:{}, data:{:?}", item.0, item.1);
+    }
     // make sure the selector values specify bitwise AND at each step in the trace
     for row in 0..8 {
         assert_eq!([trace[0][row], trace[1][row]], BITWISE_AND);
@@ -37,7 +40,7 @@ fn bitwise_and() {
 
     // make sure result and result from the trace are the same
     assert_eq!(result, trace[12][7]);
-
+    info!("and:{}", result);
     // make sure values a and b were decomposed correctly
     check_decomposition(&trace, 0, a.as_int(), b.as_int());
 
