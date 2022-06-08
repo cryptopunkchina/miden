@@ -1,92 +1,42 @@
-use log::info;
+use crate::RangeCheckTrace;
+
 use super::{BTreeMap, Felt, FieldElement, RangeChecker};
 use rand_utils::rand_array;
 use vm_core::{utils::ToElements, StarkField};
 
-pub fn init_log(log_level: &str){
-    use std::io::Write;
-
-    let env = env_logger::Env::default().filter_or(env_logger::DEFAULT_FILTER_ENV,log_level);
-    env_logger::Builder::from_env(env).format(|buf,record|{
-        writeln!(
-            buf,
-            " {} [{}:{}] {} {}",
-            // Local::now().format("%Y-%m-%d %H:%M:%S"),
-            record.level(),
-            record.module_path().unwrap_or("<unnamed>"),
-            record.line().unwrap_or(0),
-            record.target(),
-            &record.args()
-        )
-    }).init();
-    // env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(log_level)).init();
-    let env = env_logger::Env::new().filter_or(env_logger::DEFAULT_FILTER_ENV, log_level).write_style_or("MY_LOG_STYLE", "always");
-    env_logger::Builder::from_env(env)
-        .format(|buf, record| {
-            writeln!(buf, "{}: {}", record.level(), record.args())
-        })
-        .is_test(true).try_init();
-    println!("log config success");
-}
-
 #[test]
 fn range_checks() {
-    init_log("info");
     let mut checker = RangeChecker::new();
 
-    let values = [0, 1, 2, 2, 2, 2, 2,2,2,2,2,3, 3, 3, 4, 4, 100, 355, 620, 65534].to_elements();
+    let values = [0, 1, 2, 2, 2, 2, 3, 3, 3, 4, 4, 100, 355, 620].to_elements();
 
     for &value in values.iter() {
         checker.add_value(value.as_int() as u16)
     }
-    info!("checker:{:?}", checker );
-    let trace = checker.into_trace(1024, 0);
-    // for data in trace.to_vec().iter() {
-    //     for (index, item) in data.iter().enumerate() {
-    //         info!("trace {}:{}", index, item.to_string() );
-    //     }
-    // }
+
+    let RangeCheckTrace {
+        trace,
+        aux_trace_hints: _,
+    } = checker.into_trace(1024, 0);
     validate_trace(&trace, &values);
-    // info!("trace:{:?}", trace );
 
     // skip the 8-bit portion of the trace
     let mut i = 0;
-
     while trace[0][i] == Felt::ZERO {
-        // (1,1): 4
-        // (0,1): 2
-        // (1,0): 1
-        // (0,0): 0
-        info!("trace pos:{}:num:{}:{},value:{}",i, trace[1][i].as_int(),trace[2][i].as_int(), trace[3][i].as_int() );
-        i += 1;
-
+        i += 1
     }
-    info!("16-bit index:{}", i );
-    // make sure the values are arranged as expected
-    // validate_row(&trace, i, 0, 1);
-    // validate_row(&trace, i + 1, 1, 1);
-    // validate_row(&trace, i + 2, 2, 4);
-    // validate_row(&trace, i + 3, 3, 2);
-    // validate_row(&trace, i + 4, 3, 1);
-    // validate_row(&trace, i + 5, 4, 2);
-    // validate_row(&trace, i + 6, 100, 1);
-    // validate_row(&trace, i + 7, 355, 1);
-    // validate_row(&trace, i + 8, 610, 0);
-    // validate_row(&trace, i + 9, 620, 1);
 
+    // make sure the values are arranged as expected
     validate_row(&trace, i, 0, 1);
     validate_row(&trace, i + 1, 1, 1);
     validate_row(&trace, i + 2, 2, 4);
-    validate_row(&trace, i + 3, 2, 4);
-    validate_row(&trace, i + 4, 2, 1);
-    validate_row(&trace, i + 5, 3, 2);
-    validate_row(&trace, i + 6, 3, 1);
-    validate_row(&trace, i + 7, 4, 2);
-    validate_row(&trace, i + 8, 100, 1);
-    validate_row(&trace, i + 9, 355, 1);
-    validate_row(&trace, i + 10, 610, 0);
-    validate_row(&trace, i + 11, 620, 1);
-    validate_row(&trace, i + 11 + (65534-620+254)/255, 65534, 1);
+    validate_row(&trace, i + 3, 3, 2);
+    validate_row(&trace, i + 4, 3, 1);
+    validate_row(&trace, i + 5, 4, 2);
+    validate_row(&trace, i + 6, 100, 1);
+    validate_row(&trace, i + 7, 355, 1);
+    validate_row(&trace, i + 8, 610, 0);
+    validate_row(&trace, i + 9, 620, 1);
 }
 
 #[test]
@@ -103,7 +53,10 @@ fn range_checks_rand() {
     }
 
     let trace_len = checker.trace_len().next_power_of_two();
-    let trace = checker.into_trace(trace_len, 0);
+    let RangeCheckTrace {
+        trace,
+        aux_trace_hints: _,
+    } = checker.into_trace(trace_len, 0);
     validate_trace(&trace, &values);
 }
 
@@ -154,7 +107,7 @@ fn validate_trace(trace: &[Vec<Felt>], lookups: &[Felt]) {
         assert!(delta <= 1);
 
         // keep track of lookup count for each value
-        let count = get_lookup_count(&trace, i);
+        let count = get_lookup_count(trace, i);
         lookups_8bit
             .entry(value)
             .and_modify(|value| *value += count)
@@ -177,7 +130,7 @@ fn validate_trace(trace: &[Vec<Felt>], lookups: &[Felt]) {
 
     // process the first row
     assert_eq!(Felt::ZERO, trace[3][i]);
-    let count = get_lookup_count(&trace, i);
+    let count = get_lookup_count(trace, i);
     lookups_16bit.insert(0u16, count);
     i += 1;
 
@@ -203,7 +156,7 @@ fn validate_trace(trace: &[Vec<Felt>], lookups: &[Felt]) {
         });
 
         // keep track of lookup count for each value
-        let count = get_lookup_count(&trace, i);
+        let count = get_lookup_count(trace, i);
         lookups_16bit
             .entry(value)
             .and_modify(|value| *value += count)

@@ -2,12 +2,12 @@ use vm_core::{
     errors::AdviceSetError,
     hasher::Digest,
     program::{
-        blocks::{CodeBlock, Join, Loop, OpBatch, Span, Split, OP_GROUP_SIZE},
+        blocks::{CodeBlock, Join, Loop, OpBatch, Span, Split, OP_BATCH_SIZE, OP_GROUP_SIZE},
         Script,
     },
     AdviceInjector, DebugOptions, Felt, FieldElement, Operation, ProgramInputs, StackTopState,
-    StarkField, Word, AUX_TRACE_WIDTH, MIN_STACK_DEPTH, MIN_TRACE_LEN, NUM_STACK_HELPER_COLS,
-    RANGE_CHECK_TRACE_WIDTH, STACK_TRACE_WIDTH, SYS_TRACE_WIDTH,
+    StarkField, Word, AUX_TRACE_WIDTH, DECODER_TRACE_WIDTH, MIN_STACK_DEPTH, MIN_TRACE_LEN,
+    NUM_STACK_HELPER_COLS, RANGE_CHECK_TRACE_WIDTH, STACK_TRACE_WIDTH, SYS_TRACE_WIDTH,
 };
 
 mod operations;
@@ -308,13 +308,6 @@ impl Process {
 
     pub fn to_components(self) -> (System, Stack, RangeChecker, AuxTable) {
         let aux_table = AuxTable::new(self.hasher, self.bitwise, self.memory);
-        println!("aux_table memory len:{} data:{:?}", aux_table.memory.trace_len(), aux_table.memory);
-        println!("aux_table bitwise len:{} data:{:?}", aux_table.bitwise.trace_len(), aux_table.bitwise);
-        println!("aux_table hasher len:{} data:{:?}", aux_table.hasher.trace_len(), aux_table.hasher);
-
-        println!("aux_table system len:{} data:{:?}", self.system.trace_len(), self.system.clk_trace.len());
-        // println!("aux_table stack len:{} data:{:?}", self.stack.trace_len(), self.stack);
-
         (self.system, self.stack, self.range, aux_table)
     }
 }

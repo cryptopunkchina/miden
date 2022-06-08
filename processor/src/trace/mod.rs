@@ -1,8 +1,12 @@
-use super::{Digest, Felt, FieldElement, Process, StackTopState};
+use super::{
+    range::AuxTraceHints as RangeCheckerAuxTraceHints, Digest, Felt, FieldElement, Process,
+    StackTopState,
+};
 use core::slice;
-use log::info;
 use vm_core::{StarkField, MIN_STACK_DEPTH, MIN_TRACE_LEN, STACK_TRACE_OFFSET, TRACE_WIDTH};
 use winterfell::{EvaluationFrame, Matrix, Serializable, Trace, TraceLayout};
+
+mod range;
 
 // CONSTANTS
 // ================================================================================================
@@ -18,17 +22,28 @@ type RandomCoin = vm_core::utils::RandomCoin<Felt, vm_core::hasher::Hasher>;
 // VM EXECUTION TRACE
 // ================================================================================================
 
+pub struct AuxTraceHints {
+    range: RangeCheckerAuxTraceHints,
+}
+
 /// TODO: for now this consists only of system register trace, stack trace, range check trace, and
 /// auxiliary table trace, but will also need to include the decoder trace.
 pub struct ExecutionTrace {
     meta: Vec<u8>,
     layout: TraceLayout,
-    pub main_trace: Matrix<Felt>,
+    main_trace: Matrix<Felt>,
+    aux_trace_hints: AuxTraceHints,
     // TODO: program hash should be retrieved from decoder trace, but for now we store it explicitly
     program_hash: Digest,
 }
 
 impl ExecutionTrace {
+    // CONSTANTS
+    // --------------------------------------------------------------------------------------------
+
+    /// Number of rows at the end of an execution trace which are injected with random values.
+    pub const NUM_RAND_ROWS: usize = NUM_RAND_ROWS;
+
     // CONSTRUCTOR
     // --------------------------------------------------------------------------------------------
     /// Builds an execution trace for the provided process.
@@ -38,12 +53,13 @@ impl ExecutionTrace {
         // we are using random values only to stabilize constraint degree, and not to achieve
         // perfect zero knowledge.
         let rng = RandomCoin::new(&program_hash.to_bytes());
-        let main_trace = finalize_trace(process, rng);
+        let (main_trace, aux_trace_hints) = finalize_trace(process, rng);
 
         Self {
             meta: Vec::new(),
-            layout: TraceLayout::new(TRACE_WIDTH, [0], [0]),
+            layout: TraceLayout::new(TRACE_WIDTH, [2], [1]),
             main_trace: Matrix::new(main_trace),
+            aux_trace_hints,
             program_hash,
         }
     }
@@ -89,7 +105,7 @@ impl ExecutionTrace {
     }
 
     #[cfg(test)]
-    pub fn test_finalize_trace(process: Process) -> Vec<Vec<Felt>> {
+    pub fn test_finalize_trace(process: Process) -> (Vec<Vec<Felt>>, AuxTraceHints) {
         let rng = RandomCoin::new(&[0; 32]);
         finalize_trace(process, rng)
     }
@@ -119,11 +135,31 @@ impl Trace for ExecutionTrace {
 
     fn build_aux_segment<E: FieldElement<BaseField = Felt>>(
         &mut self,
-        _aux_segments: &[Matrix<E>],
-        _rand_elements: &[E],
+        aux_segments: &[Matrix<E>],
+        rand_elements: &[E],
     ) -> Option<Matrix<E>> {
-        // TODO: implement
-        unimplemented!()
+        // We only have one auxiliary segment.
+        if !aux_segments.is_empty() {
+            return None;
+        }
+
+        // Add the range checker's running product columns.
+        let mut aux_columns = range::build_aux_columns(
+            self.length(),
+            &self.aux_trace_hints.range,
+            rand_elements,
+            self.main_trace.get_column(range::V_COL_IDX),
+        );
+
+        // inject random values into the last rows of the trace
+        let mut rng = RandomCoin::new(&self.program_hash.to_bytes());
+        for i in self.length() - NUM_RAND_ROWS..self.length() {
+            for column in aux_columns.iter_mut() {
+                column[i] = rng.draw().expect("failed to draw a random value");
+            }
+        }
+
+        Some(Matrix::new(aux_columns))
     }
 
     fn read_main_frame(&self, row_idx: usize, frame: &mut EvaluationFrame<Felt>) {
@@ -138,9 +174,8 @@ impl Trace for ExecutionTrace {
 // ================================================================================================
 
 /// TODO: add docs
-#[derive(Debug)]
 pub struct TraceFragment<'a> {
-    pub data: Vec<&'a mut [Felt]>,
+    data: Vec<&'a mut [Felt]>,
 }
 
 impl<'a> TraceFragment<'a> {
@@ -211,16 +246,16 @@ impl<'a> TraceFragment<'a> {
 /// - Inserting random values in the last row of all columns. This helps ensure that there
 ///   are no repeating patterns in each column and each column contains a least two distinct
 ///   values. This, in turn, ensures that polynomial degrees of all columns are stable.
-fn finalize_trace(process: Process, mut rng: RandomCoin) -> Vec<Vec<Felt>> {
-    let (system, stack, range, aux_table) = process.to_components();
+fn finalize_trace(process: Process, mut rng: RandomCoin) -> (Vec<Vec<Felt>>, AuxTraceHints) {
+    let (system, decoder, stack, range, aux_table) = process.to_components();
 
     let clk = system.clk();
 
     // trace lengths of system and stack components must be equal to the number of executed cycles
     assert_eq!(clk, system.trace_len(), "inconsistent system trace lengths");
+    // TODO: check decoder trace length
     assert_eq!(clk, stack.trace_len(), "inconsistent stack trace lengths");
 
-    info!("clk:{},range:{},aux_table:{}", clk, range.trace_len(), aux_table.trace_len());
     // Get the trace length required to hold all execution trace steps.
     let max_len = [clk, range.trace_len(), aux_table.trace_len()]
         .into_iter()
@@ -239,14 +274,16 @@ fn finalize_trace(process: Process, mut rng: RandomCoin) -> Vec<Vec<Felt>> {
 
     // combine all trace segments into the main trace
     let system_trace = system.into_trace(trace_len, NUM_RAND_ROWS);
+    let decoder_trace = decoder.into_trace(trace_len, NUM_RAND_ROWS);
     let stack_trace = stack.into_trace(trace_len, NUM_RAND_ROWS);
     let range_check_trace = range.into_trace(trace_len, NUM_RAND_ROWS);
     let aux_table_trace = aux_table.into_trace(trace_len, NUM_RAND_ROWS);
 
     let mut trace = system_trace
         .into_iter()
+        .chain(decoder_trace)
         .chain(stack_trace)
-        .chain(range_check_trace)
+        .chain(range_check_trace.trace)
         .chain(aux_table_trace)
         .collect::<Vec<_>>();
 
@@ -257,5 +294,9 @@ fn finalize_trace(process: Process, mut rng: RandomCoin) -> Vec<Vec<Felt>> {
         }
     }
 
-    trace
+    let aux_trace_hints = AuxTraceHints {
+        range: range_check_trace.aux_trace_hints,
+    };
+
+    (trace, aux_trace_hints)
 }
