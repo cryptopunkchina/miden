@@ -3,6 +3,7 @@ use super::{
     StackTopState,
 };
 use core::slice;
+use log::info;
 use vm_core::{StarkField, MIN_STACK_DEPTH, MIN_TRACE_LEN, STACK_TRACE_OFFSET, TRACE_WIDTH};
 use winterfell::{EvaluationFrame, Matrix, Serializable, Trace, TraceLayout};
 
@@ -277,8 +278,9 @@ fn finalize_trace(process: Process, mut rng: RandomCoin) -> (Vec<Vec<Felt>>, Aux
     let decoder_trace = decoder.into_trace(trace_len, NUM_RAND_ROWS);
     let stack_trace = stack.into_trace(trace_len, NUM_RAND_ROWS);
     let range_check_trace = range.into_trace(trace_len, NUM_RAND_ROWS);
-    let aux_table_trace = aux_table.into_trace(trace_len, NUM_RAND_ROWS);
 
+    let aux_table_trace = aux_table.into_trace(trace_len, NUM_RAND_ROWS);
+    info!("trace aux_table_trace len:{}", aux_table_trace.len());
     let mut trace = system_trace
         .into_iter()
         .chain(decoder_trace)
@@ -287,6 +289,9 @@ fn finalize_trace(process: Process, mut rng: RandomCoin) -> (Vec<Vec<Felt>>, Aux
         .chain(aux_table_trace)
         .collect::<Vec<_>>();
 
+    for (index,item) in trace.iter().enumerate() {
+        info!("trace index:{},item:{:?}", index, item.len());
+    }
     // inject random values into the last rows of the trace
     for i in trace_len - NUM_RAND_ROWS..trace_len {
         for column in trace.iter_mut() {

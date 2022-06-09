@@ -12,7 +12,7 @@ pub fn get_example(flag: usize) -> Example {
     // determine the expected result
     let expected_result = match flag {
         0 => 15u64,
-        1 => 35u64,
+        1 => 37u64,
         _ => panic!("flag must be a binary value"),
     };
 
@@ -27,8 +27,8 @@ pub fn get_example(flag: usize) -> Example {
 
         push.5
         pow2
-        push.10
-        push.11
+        push.2
+        push.4
         storew.mem.10000
         dropw
 
@@ -36,8 +36,10 @@ pub fn get_example(flag: usize) -> Example {
         drop
         drop
         swap
+        push.2
         push.1
         if.true
+            u32add
             u32add
         else
             u32mul

@@ -1,3 +1,4 @@
+use log::info;
 use crate::RangeCheckTrace;
 
 use super::{Felt, FieldElement};
@@ -157,6 +158,7 @@ impl RangeChecker {
         // build the 8-bit segment of the trace table
         let mut i = num_padding_rows;
         for (value, num_lookups) in lookups_8bit.into_iter().enumerate() {
+            info!("lookups_8bit value:{}", value);
             write_value(
                 &mut trace,
                 &mut aux_column_hints,
@@ -175,6 +177,7 @@ impl RangeChecker {
         let start_16bit = i;
         let mut prev_value = 0u16;
         for (&value, &num_lookups) in self.lookups.iter() {
+            info!("lookups_16 bit value:{}", value);
             // when the delta between two values is greater than 255, insert "bridge" rows
             for value in (prev_value..value).step_by(255).skip(1) {
                 write_value(&mut trace, &mut aux_column_hints, &mut i, 0, value as u64);
