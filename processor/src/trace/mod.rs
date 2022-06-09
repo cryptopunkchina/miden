@@ -29,9 +29,9 @@ pub struct AuxTraceHints {
 /// TODO: for now this consists only of system register trace, stack trace, range check trace, and
 /// auxiliary table trace, but will also need to include the decoder trace.
 pub struct ExecutionTrace {
-    meta: Vec<u8>,
+    pub meta: Vec<u8>,
     layout: TraceLayout,
-    main_trace: Matrix<Felt>,
+    pub main_trace: Matrix<Felt>,
     aux_trace_hints: AuxTraceHints,
     // TODO: program hash should be retrieved from decoder trace, but for now we store it explicitly
     program_hash: Digest,

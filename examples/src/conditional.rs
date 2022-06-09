@@ -38,9 +38,9 @@ pub fn get_example(flag: usize) -> Example {
         swap
         push.1
         if.true
-            add
+            u32add
         else
-            mul
+            u32mul
         end
     end",
     )
