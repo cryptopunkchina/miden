@@ -1,6 +1,7 @@
 use crate::{Example, init_log};
-use log::debug;
+use log::{debug, info};
 use miden::{Assembler, ProgramInputs};
+use vm_core::program::blocks::CodeBlock;
 
 // EXAMPLE BUILDER
 // ================================================================================================
@@ -53,12 +54,47 @@ pub fn get_example(flag: usize) -> Example {
         expected_result
     );
 
+    let root = program.root() ;
+    execute_code_block_print(root);
+
     Example {
         program,
         inputs: ProgramInputs::new(&[], &[flag].to_vec(), [].to_vec()).unwrap(),
         pub_inputs: vec![],
         expected_result: vec![expected_result],
         num_outputs: 1,
+    }
+}
+
+fn execute_code_block_print(root: &CodeBlock) {
+    match root {
+        CodeBlock::Join(block) => {
+            info!("join");
+            execute_code_block_print(block.first());
+            execute_code_block_print(block.second());
+        },
+        CodeBlock::Split(block) => {
+            info!("Split");
+            execute_code_block_print(block.on_true());
+            execute_code_block_print(block.on_false());
+        },
+        CodeBlock::Loop(block) => {
+            info!("Loop");
+        },
+        CodeBlock::Span(block) =>  {
+            // info!("span code:{:?}", block);
+            for (index, item) in block.op_batches().iter().enumerate() {
+                info!("span code index:{:?}, ops:{:?}",index, item.ops());
+                info!("span code num_groups:{:?}:{:?}",item.num_groups(), item.groups());
+                info!("span code op_counter:{:?}",item.op_counts());
+            }
+        }
+        CodeBlock::Proxy(_) => {
+
+        },
+        _ => {
+
+        }
     }
 }
 

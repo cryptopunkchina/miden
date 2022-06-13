@@ -21,7 +21,7 @@ pub use library::Library;
 /// storage.
 #[derive(Clone, Debug)]
 pub struct Script {
-    root: CodeBlock,
+    pub root: CodeBlock,
     hash: Digest,
 }
 
