@@ -68,15 +68,6 @@ impl Span {
         &self.op_batches
     }
 
-    /// Returns a list of operations contained in this span block.
-    pub fn get_ops(&self) -> Vec<Operation> {
-        let mut ops = Vec::with_capacity(self.op_batches.len() * MAX_OPS_PER_BATCH);
-        for batch in self.op_batches.iter() {
-            ops.extend_from_slice(&batch.ops);
-        }
-        ops
-    }
-
     // SPAN MUTATORS
     // --------------------------------------------------------------------------------------------
 
@@ -101,6 +92,18 @@ impl Span {
         let (op_batches, hash) = batch_ops(ops);
         self.op_batches = op_batches;
         self.hash = hash;
+    }
+
+    // HELPER METHODS
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns a list of operations contained in this span block.
+    fn get_ops(&self) -> Vec<Operation> {
+        let mut ops = Vec::with_capacity(self.op_batches.len() * MAX_OPS_PER_BATCH);
+        for batch in self.op_batches.iter() {
+            ops.extend_from_slice(&batch.ops);
+        }
+        ops
     }
 }
 
@@ -335,7 +338,20 @@ fn batch_ops(ops: Vec<Operation>) -> (Vec<OpBatch>, Digest) {
         batches.push(batch);
     }
 
-    let hash = hasher::hash_elements(flatten_slice_elements(&batch_groups));
+    // compute total number of operation groups in all batches. This is done as follows:
+    // - For all batches but the last one we set the number of groups to 8, regardless of the
+    //   actual number of groups in the batch. The reason for this is that when operation
+    //   batches are concatenated together each batch contributes 8 elements to the hash.
+    // - For the last batch, we take the number of actual batches and round it up to the next
+    //   power of two. The reason for rounding is that the VM always executes a number of
+    //   operation groups which is a power of two.
+    let num_batches = batches.len();
+    let last_batch_num_groups = batches[num_batches - 1].num_groups().next_power_of_two();
+    let num_op_groups = (num_batches - 1) * BATCH_SIZE + last_batch_num_groups;
+
+    // compute the hash of all operation groups
+    let op_groups = &flatten_slice_elements(&batch_groups)[..num_op_groups];
+    let hash = hasher::hash_elements(op_groups);
 
     (batches, hash)
 }
@@ -364,7 +380,7 @@ mod tests {
 
         assert_eq!(batch_groups, batch.groups);
         assert_eq!([1_usize, 0, 0, 0, 0, 0, 0, 0], batch.op_counts);
-        assert_eq!(hasher::hash_elements(&batch_groups), hash);
+        assert_eq!(hasher::hash_elements(&batch_groups[..1]), hash);
 
         // --- two operations ---------------------------------------------------------------------
         let ops = vec![Operation::Add, Operation::Mul];
@@ -380,7 +396,7 @@ mod tests {
 
         assert_eq!(batch_groups, batch.groups);
         assert_eq!([2_usize, 0, 0, 0, 0, 0, 0, 0], batch.op_counts);
-        assert_eq!(hasher::hash_elements(&batch_groups), hash);
+        assert_eq!(hasher::hash_elements(&batch_groups[..1]), hash);
 
         // --- one group with one immediate value -------------------------------------------------
         let ops = vec![Operation::Add, Operation::Push(Felt::new(12345678))];
@@ -397,7 +413,7 @@ mod tests {
 
         assert_eq!(batch_groups, batch.groups);
         assert_eq!([2_usize, 0, 0, 0, 0, 0, 0, 0], batch.op_counts);
-        assert_eq!(hasher::hash_elements(&batch_groups), hash);
+        assert_eq!(hasher::hash_elements(&batch_groups[..2]), hash);
 
         // --- one group with 7 immediate values --------------------------------------------------
         let ops = vec![
@@ -478,7 +494,7 @@ mod tests {
         assert_eq!(batch1_groups, batch1.groups);
 
         let all_groups = [batch0_groups, batch1_groups].concat();
-        assert_eq!(hasher::hash_elements(&all_groups), hash);
+        assert_eq!(hasher::hash_elements(&all_groups[..10]), hash);
 
         // --- immediate values in-between groups -------------------------------------------------
         let ops = vec![
@@ -514,7 +530,7 @@ mod tests {
 
         assert_eq!([9_usize, 0, 0, 1, 0, 0, 0, 0], batch.op_counts);
         assert_eq!(batch_groups, batch.groups);
-        assert_eq!(hasher::hash_elements(&batch_groups), hash);
+        assert_eq!(hasher::hash_elements(&batch_groups[..4]), hash);
 
         // --- push at the end of a group is moved into the next group ----------------------------
         let ops = vec![
@@ -548,7 +564,7 @@ mod tests {
 
         assert_eq!(batch_groups, batch.groups);
         assert_eq!([8_usize, 1, 0, 0, 0, 0, 0, 0], batch.op_counts);
-        assert_eq!(hasher::hash_elements(&batch_groups), hash);
+        assert_eq!(hasher::hash_elements(&batch_groups[..4]), hash);
 
         // --- push at the end of a group is moved into the next group ----------------------------
         let ops = vec![
@@ -582,7 +598,7 @@ mod tests {
 
         assert_eq!(batch_groups, batch.groups);
         assert_eq!([8_usize, 0, 1, 0, 0, 0, 0, 0], batch.op_counts);
-        assert_eq!(hasher::hash_elements(&batch_groups), hash);
+        assert_eq!(hasher::hash_elements(&batch_groups[..4]), hash);
 
         // --- push at the end of the 7th group overflows to the next batch -----------------------
         let ops = vec![
@@ -646,7 +662,7 @@ mod tests {
         assert_eq!([2_usize, 0, 0, 0, 0, 0, 0, 0], batch1.op_counts);
 
         let all_groups = [batch0_groups, batch1_groups].concat();
-        assert_eq!(hasher::hash_elements(&all_groups), hash);
+        assert_eq!(hasher::hash_elements(&all_groups[..10]), hash);
     }
 
     #[test]
@@ -665,7 +681,7 @@ mod tests {
         batch_groups[0] = build_group(&ops);
         batch_groups[1] = Felt::ONE;
         assert_eq!(batch_groups, batch.groups);
-        assert_eq!(hasher::hash_elements(&batch_groups), hash);
+        assert_eq!(hasher::hash_elements(&batch_groups[..2]), hash);
     }
 
     // TEST HELPERS
