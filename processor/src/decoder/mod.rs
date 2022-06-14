@@ -207,9 +207,9 @@ impl Process {
 ///   operations within an operation group. Values in this column could be between 0 and 8
 ///   (both inclusive) as there could be at most 9 operations in an operation group.
 pub struct Decoder {
-    block_stack: BlockStack,
-    span_context: Option<SpanContext>,
-    trace: DecoderTrace,
+    pub block_stack: BlockStack,
+    pub span_context: Option<SpanContext>,
+    pub trace: DecoderTrace,
 }
 
 impl Decoder {
@@ -420,8 +420,8 @@ impl Default for Decoder {
 // ================================================================================================
 
 /// Keeps track of code blocks which are currently being executed by the VM.
-struct BlockStack {
-    blocks: Vec<BlockInfo>,
+pub struct BlockStack {
+    pub blocks: Vec<BlockInfo>,
 }
 
 impl BlockStack {
@@ -471,7 +471,7 @@ impl BlockStack {
 
 /// Contains basic information about a code block.
 #[derive(Debug, Clone, Copy)]
-struct BlockInfo {
+pub struct BlockInfo {
     addr: Felt,
     parent_addr: Felt,
     is_loop_body: Felt,
@@ -486,9 +486,10 @@ struct BlockInfo {
 ///   encoded as opcodes (7 bits) appended one after another into a single field element, with the
 ///   next operation to be executed located at the least significant position.
 /// - Number of operation groups left to be executed in the entire SPAN block.
-struct SpanContext {
-    group_ops_left: Felt,
-    num_groups_left: Felt,
+#[derive(Clone, Debug)]
+pub struct SpanContext {
+    pub group_ops_left: Felt,
+    pub num_groups_left: Felt,
 }
 
 impl Default for SpanContext {

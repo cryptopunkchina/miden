@@ -31,12 +31,12 @@ pub const USER_OP_HELPERS: Range<usize> = Range {
 /// - 1 column to keep track of the index of a currently executing operation within an operation
 ///   group.
 pub struct DecoderTrace {
-    addr_trace: Vec<Felt>,
-    op_bits_trace: [Vec<Felt>; NUM_OP_BITS],
-    in_span_trace: Vec<Felt>,
-    hasher_trace: [Vec<Felt>; NUM_HASHER_COLUMNS],
-    group_count_trace: Vec<Felt>,
-    op_idx_trace: Vec<Felt>,
+    pub addr_trace: Vec<Felt>,
+    pub op_bits_trace: [Vec<Felt>; NUM_OP_BITS],
+    pub in_span_trace: Vec<Felt>,
+    pub hasher_trace: [Vec<Felt>; NUM_HASHER_COLUMNS],
+    pub group_count_trace: Vec<Felt>,
+    pub op_idx_trace: Vec<Felt>,
 }
 
 impl DecoderTrace {

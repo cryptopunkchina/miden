@@ -275,12 +275,48 @@ fn finalize_trace(process: Process, mut rng: RandomCoin) -> (Vec<Vec<Felt>>, Aux
 
     // combine all trace segments into the main trace
     let system_trace = system.into_trace(trace_len, NUM_RAND_ROWS);
-    let decoder_trace = decoder.into_trace(trace_len, NUM_RAND_ROWS);
+
+    for aux in decoder.block_stack.blocks.iter().enumerate() {
+        info!("trace BlockInfo index:{}, {:?}", aux.0, aux.1);
+    }
+
+    info!("trace span_context :{:?}", decoder.span_context);
+
+    for aux in decoder.trace.op_idx_trace.iter().enumerate() {
+        info!("trace op_idx_trace index:{}, {:?}", aux.0, aux.1);
+    }
+
+    for aux in decoder.trace.addr_trace.iter().enumerate() {
+        info!("trace addr_trace index:{}, {:?}", aux.0, aux.1);
+    }
+
+    for aux in decoder.trace.op_bits_trace.iter().enumerate() {
+        info!("trace op_bits_trace index:{}, len:{},op: {:?}", aux.0,aux.1.len(), aux.1);
+    }
+
+    for aux in decoder.trace.group_count_trace.iter().enumerate() {
+        info!("trace group_count_trace index:{}, {:?}", aux.0, aux.1);
+    }
+
+    for aux in decoder.trace.hasher_trace.iter().enumerate() {
+        info!("trace hasher_trace index:{}, {:?}", aux.0, aux.1);
+    }
+
+    for aux in decoder.trace.in_span_trace.iter().enumerate() {
+        info!("trace in_span_trace index:{}, {:?}", aux.0, aux.1);
+    }
+
+    let mut decoder_trace = decoder.into_trace(trace_len, NUM_RAND_ROWS);
+    for aux in decoder_trace.iter().enumerate() {
+        info!("trace decoder_trace index:{}, {:?}", aux.0, aux.1);
+    }
     let stack_trace = stack.into_trace(trace_len, NUM_RAND_ROWS);
     let range_check_trace = range.into_trace(trace_len, NUM_RAND_ROWS);
 
-    let aux_table_trace = aux_table.into_trace(trace_len, NUM_RAND_ROWS);
-    info!("trace aux_table_trace len:{}", aux_table_trace.len());
+    let mut aux_table_trace = aux_table.into_trace(trace_len, NUM_RAND_ROWS);
+    for aux in aux_table_trace.iter_mut().enumerate() {
+        // info!("trace aux_table_trace index:{}, {:?}", aux.0, aux.1);
+    }
     let mut trace = system_trace
         .into_iter()
         .chain(decoder_trace)
