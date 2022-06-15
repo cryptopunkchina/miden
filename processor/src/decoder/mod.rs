@@ -7,6 +7,7 @@ use vm_core::{
         NUM_HASHER_COLUMNS, NUM_OP_BATCH_FLAGS, NUM_OP_BITS, OP_BATCH_1_GROUPS, OP_BATCH_2_GROUPS,
         OP_BATCH_4_GROUPS, OP_BATCH_8_GROUPS,
     },
+    hasher::DIGEST_LEN,
     utils::collections::Vec,
     ONE, ZERO,
 };
@@ -232,6 +233,21 @@ impl Decoder {
             span_context: None,
             trace: DecoderTrace::new(),
         }
+    }
+
+    // PUBLIC ACCESSORS
+    // --------------------------------------------------------------------------------------------
+
+    /// Returns execution trace length for this decoder.
+    pub fn trace_len(&self) -> usize {
+        self.trace.trace_len()
+    }
+
+    /// Hash of the program decoded by this decoder.
+    ///
+    /// Hash of the program is taken from the last row of first 4 registers of the decoder trace.
+    pub fn program_hash(&self) -> [Felt; DIGEST_LEN] {
+        self.trace.program_hash()
     }
 
     // CONTROL BLOCKS

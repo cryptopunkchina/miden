@@ -22,7 +22,6 @@ pub use library::Library;
 #[derive(Clone, Debug)]
 pub struct Script {
     root: CodeBlock,
-    hash: Digest,
 }
 
 impl Script {
@@ -30,8 +29,7 @@ impl Script {
     // --------------------------------------------------------------------------------------------
     /// Constructs a new program from the specified code block.
     pub fn new(root: CodeBlock) -> Self {
-        let hash = hasher::merge(&[root.hash(), Digest::default()]);
-        Self { root, hash }
+        Self { root }
     }
 
     // PUBLIC ACCESSORS
@@ -43,8 +41,8 @@ impl Script {
     }
 
     /// Returns a hash of this script.
-    pub fn hash(&self) -> &Digest {
-        &self.hash
+    pub fn hash(&self) -> Digest {
+        self.root.hash()
     }
 }
 

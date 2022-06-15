@@ -1,10 +1,10 @@
 use super::{
-    Felt, Operation, Word, MIN_TRACE_LEN, NUM_HASHER_COLUMNS, NUM_OP_BATCH_FLAGS, NUM_OP_BITS, ONE,
-    OP_BATCH_1_GROUPS, OP_BATCH_2_GROUPS, OP_BATCH_4_GROUPS, OP_BATCH_8_GROUPS, ZERO,
+    Felt, Operation, Word, DIGEST_LEN, MIN_TRACE_LEN, NUM_HASHER_COLUMNS, NUM_OP_BATCH_FLAGS,
+    NUM_OP_BITS, ONE, OP_BATCH_1_GROUPS, OP_BATCH_2_GROUPS, OP_BATCH_4_GROUPS, OP_BATCH_8_GROUPS,
+    OP_BATCH_SIZE, ZERO,
 };
 use core::ops::Range;
 use vm_core::{
-    program::blocks::OP_BATCH_SIZE,
     utils::{collections::Vec, new_array_vec},
     StarkField,
 };
@@ -67,6 +67,15 @@ impl DecoderTrace {
     /// Returns the current length of columns in this trace.
     pub fn trace_len(&self) -> usize {
         self.addr_trace.len()
+    }
+
+    /// Returns the contents of the first 4 registers of the hasher state at the last row.
+    pub fn program_hash(&self) -> [Felt; DIGEST_LEN] {
+        let mut result = [ZERO; DIGEST_LEN];
+        for (i, element) in result.iter_mut().enumerate() {
+            *element = self.last_hasher_value(i);
+        }
+        result
     }
 
     // TRACE MUTATORS
@@ -420,6 +429,12 @@ impl DecoderTrace {
     /// Returns the last value of the operation group count.
     fn last_group_count(&self) -> Felt {
         *self.group_count_trace.last().expect("no group count")
+    }
+
+    /// Returns the last value in the specified hasher column.
+    fn last_hasher_value(&self, idx: usize) -> Felt {
+        debug_assert!(idx < NUM_HASHER_COLUMNS, "invalid hasher register index");
+        *self.hasher_trace[idx].last().expect("no last hasher value")
     }
 
     /// Returns a reference to the last value in the helper register at the specified index.

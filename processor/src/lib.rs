@@ -71,8 +71,13 @@ pub struct RangeCheckTrace {
 pub fn execute(script: &Script, inputs: &ProgramInputs) -> Result<ExecutionTrace, ExecutionError> {
     let mut process = Process::new(inputs.clone());
     process.execute_code_block(script.root())?;
-    // TODO: make sure program hash from script and trace are the same
-    Ok(ExecutionTrace::new(process, *script.hash()))
+    let trace = ExecutionTrace::new(process);
+    assert_eq!(
+        script.hash(),
+        trace.program_hash(),
+        "inconsistent program hash between "
+    );
+    Ok(trace)
 }
 
 /// Returns an iterator that allows callers to step through each execution and inspect
@@ -80,6 +85,11 @@ pub fn execute(script: &Script, inputs: &ProgramInputs) -> Result<ExecutionTrace
 pub fn execute_iter(script: &Script, inputs: &ProgramInputs) -> VmStateIterator {
     let mut process = Process::new_debug(inputs.clone());
     let result = process.execute_code_block(script.root());
+    assert_eq!(
+        script.hash(),
+        process.decoder.program_hash().into(),
+        "inconsistent program hash between "
+    );
     VmStateIterator::new(process, result)
 }
 
@@ -98,6 +108,18 @@ pub struct Process {
 }
 
 impl Process {
+    // CONSTRUCTORS
+    // --------------------------------------------------------------------------------------------
+    /// Creates a new process with the provided inputs.
+    pub fn new(inputs: ProgramInputs) -> Self {
+        Self::initialize(inputs, false)
+    }
+
+    /// Creates a new process with provided inputs and debug options enabled.
+    pub fn new_debug(inputs: ProgramInputs) -> Self {
+        Self::initialize(inputs, true)
+    }
+
     fn initialize(inputs: ProgramInputs, keep_overflow_trace: bool) -> Self {
         Self {
             system: System::new(MIN_TRACE_LEN),
@@ -109,16 +131,6 @@ impl Process {
             memory: Memory::new(),
             advice: AdviceProvider::new(inputs),
         }
-    }
-
-    /// Creates a new process with the provided inputs.
-    pub fn new(inputs: ProgramInputs) -> Self {
-        Self::initialize(inputs, false)
-    }
-
-    /// Creates a new process with provided inputs and debug options enabled.
-    pub fn new_debug(inputs: ProgramInputs) -> Self {
-        Self::initialize(inputs, true)
     }
 
     // CODE BLOCK EXECUTORS
