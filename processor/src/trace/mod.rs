@@ -262,7 +262,7 @@ fn finalize_trace(process: Process, mut rng: RandomCoin) -> (Vec<Vec<Felt>>, Aux
         .into_iter()
         .max()
         .expect("failed to get max of component trace lengths");
-
+    info!("range len:{}, aux_table len:{}", range.trace_len(), aux_table.trace_len());
     // pad the trace length to the next power of two and ensure that there is space for the
     // rows to hold random values
     let trace_len = (max_len + NUM_RAND_ROWS).next_power_of_two();
