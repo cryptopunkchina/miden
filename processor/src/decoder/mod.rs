@@ -1,3 +1,4 @@
+use log::info;
 use super::{
     ExecutionError, Felt, FieldElement, Join, Loop, OpBatch, Operation, Process, Span, Split,
     StarkField, Vec, Word, MIN_TRACE_LEN, OP_BATCH_SIZE,
@@ -30,6 +31,7 @@ impl Process {
         // row addr + 7.
         let child1_hash = block.first().hash().into();
         let child2_hash = block.second().hash().into();
+        info!("start_join_block child1 hash:{:?}, child2 hash:{:?}", child1_hash, child2_hash);
         let (addr, _result) = self.hasher.merge(child1_hash, child2_hash);
 
         // make sure the result computed by the hasher is the same as the expected block hash
@@ -62,6 +64,7 @@ impl Process {
         // row addr + 7.
         let child1_hash = block.on_true().hash().into();
         let child2_hash = block.on_false().hash().into();
+        info!("start_split_block child1 hash:{:?}, child2 hash:{:?}", child1_hash, child2_hash);
         let (addr, _result) = self.hasher.merge(child1_hash, child2_hash);
 
         // make sure the result computed by the hasher is the same as the expected block hash
@@ -148,7 +151,7 @@ impl Process {
         // addr + (num_batches * 8) - 1.
         let op_batches = block.op_batches();
         let (addr, _result) = self.hasher.hash_span_block(op_batches);
-
+        info!("start_span_block  hash:{:?}", block.hash());
         // make sure the result computed by the hasher is the same as the expected block hash
         debug_assert_eq!(block.hash(), _result.into());
 
@@ -209,11 +212,11 @@ impl Process {
 ///
 /// Also keeps track of operations executed when run in debug mode.
 pub struct Decoder {
-    block_stack: BlockStack,
-    span_context: Option<SpanContext>,
-    trace: DecoderTrace,
-    operations: Vec<Operation>,
-    in_debug_mode: bool,
+    pub block_stack: BlockStack,
+    pub span_context: Option<SpanContext>,
+    pub trace: DecoderTrace,
+    pub operations: Vec<Operation>,
+    pub in_debug_mode: bool,
 }
 
 impl Decoder {
@@ -460,8 +463,8 @@ impl Default for Decoder {
 // ================================================================================================
 
 /// Keeps track of code blocks which are currently being executed by the VM.
-struct BlockStack {
-    blocks: Vec<BlockInfo>,
+pub struct BlockStack {
+    pub blocks: Vec<BlockInfo>,
 }
 
 impl BlockStack {
@@ -511,11 +514,11 @@ impl BlockStack {
 
 /// Contains basic information about a code block.
 #[derive(Debug, Clone, Copy)]
-struct BlockInfo {
-    addr: Felt,
-    parent_addr: Felt,
-    is_loop_body: Felt,
-    is_loop: Felt,
+pub struct BlockInfo {
+    pub addr: Felt,
+    pub parent_addr: Felt,
+    pub is_loop_body: Felt,
+    pub is_loop: Felt,
 }
 
 // SPAN CONTEXT
@@ -526,9 +529,10 @@ struct BlockInfo {
 ///   encoded as opcodes (7 bits) appended one after another into a single field element, with the
 ///   next operation to be executed located at the least significant position.
 /// - Number of operation groups left to be executed in the entire SPAN block.
-struct SpanContext {
-    group_ops_left: Felt,
-    num_groups_left: Felt,
+#[derive(Debug)]
+pub struct SpanContext {
+    pub group_ops_left: Felt,
+    pub num_groups_left: Felt,
 }
 
 impl Default for SpanContext {

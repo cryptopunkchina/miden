@@ -323,7 +323,7 @@ fn batch_ops(ops: Vec<Operation>) -> (Vec<OpBatch>, Digest) {
         batch_groups.push(*batch.groups());
         batches.push(batch);
     }
-
+    log::info!("flatten_slice_elements:{:?}", flatten_slice_elements(&batch_groups));
     let hash = hasher::hash_elements(flatten_slice_elements(&batch_groups));
 
     (batches, hash)

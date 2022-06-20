@@ -70,11 +70,13 @@ fn execute_code_block_print(root: &CodeBlock) {
     match root {
         CodeBlock::Join(block) => {
             info!("join");
+            info!("join code hash:{:?}", block.hash());
             execute_code_block_print(block.first());
             execute_code_block_print(block.second());
         },
         CodeBlock::Split(block) => {
             info!("Split");
+            info!("split code hash:{:?}", block.hash());
             execute_code_block_print(block.on_true());
             execute_code_block_print(block.on_false());
         },
@@ -82,8 +84,10 @@ fn execute_code_block_print(root: &CodeBlock) {
             info!("Loop");
         },
         CodeBlock::Span(block) =>  {
-            // info!("span code:{:?}", block);
+            info!("Span");
+            info!("span code hash:{:?}", block.hash());
             for (index, item) in block.op_batches().iter().enumerate() {
+
                 info!("span code index:{:?}, ops:{:?}",index, item.ops());
                 info!("span code num_groups:{:?}:{:?}",item.num_groups(), item.groups());
                 info!("span code op_counter:{:?}",item.op_counts());

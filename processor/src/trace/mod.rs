@@ -3,7 +3,8 @@ use super::{
     StackTopState, Vec,
 };
 use core::slice;
-use vm_core::{StarkField, MIN_STACK_DEPTH, MIN_TRACE_LEN, STACK_TRACE_OFFSET, TRACE_WIDTH};
+use log::info;
+use vm_core::{MIN_STACK_DEPTH, MIN_TRACE_LEN, STACK_TRACE_OFFSET, TRACE_WIDTH};
 use winterfell::{EvaluationFrame, Matrix, Serializable, Trace, TraceLayout};
 
 #[cfg(feature = "std")]
