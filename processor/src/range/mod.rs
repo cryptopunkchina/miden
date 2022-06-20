@@ -1,8 +1,8 @@
 use log::{debug, info};
 use crate::RangeCheckTrace;
 
-use super::{Felt, FieldElement};
-use vm_core::utils::{collections::BTreeMap, uninit_vector};
+use super::{BTreeMap, Felt, FieldElement, Vec};
+use vm_core::utils::uninit_vector;
 
 #[cfg(test)]
 mod tests;

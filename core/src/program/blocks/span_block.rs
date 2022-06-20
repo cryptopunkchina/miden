@@ -1,4 +1,4 @@
-use super::{fmt, hasher, Digest, Felt, FieldElement, Operation};
+use super::{fmt, hasher, Digest, Felt, FieldElement, Operation, Vec};
 use winter_utils::flatten_slice_elements;
 
 // CONSTANTS
@@ -90,17 +90,6 @@ impl Span {
             ops.extend_from_slice(&own_ops);
         }
         Self::new(ops)
-    }
-
-    /// Appends the operations from the provided [Span] to this [Span].
-    pub fn append(&mut self, other: Self) {
-        let mut ops = self.get_ops();
-        for batch in other.op_batches {
-            ops.extend_from_slice(&batch.ops);
-        }
-        let (op_batches, hash) = batch_ops(ops);
-        self.op_batches = op_batches;
-        self.hash = hash;
     }
 }
 
